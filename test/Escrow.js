@@ -33,6 +33,14 @@ describe('Escrow', () => {
             inspector.address,
             lender.address,
         )
+
+        // Approve Property
+        transaction = await realEstate.connect(seller).approve(escrow.address, 1)
+        await transaction.wait()
+
+        // List Property
+        transaction = await escrow.connect(seller).list(1, buyer.address, tokens(10), tokens(5))
+        await transaction.wait()
     })
 
     describe("Deployment", () => {
@@ -44,7 +52,7 @@ describe('Escrow', () => {
             const result = await escrow.seller()
             expect(result).to.be.equal(seller.address)
         })
-        it("Return the lendor Address", async () => {
+        it("Return the lender Address", async () => {
             const result = await escrow.lender()
             expect(result).to.be.equal(lender.address)
         })
@@ -52,5 +60,29 @@ describe('Escrow', () => {
             const result = await escrow.inspector()
             expect(result).to.be.equal(inspector.address)
         })
+    })
+
+    describe("Listing", () => {
+
+        it("Updates as Listed", async () => {
+            expect(await escrow.isListed(1)).to.be.equal(true)
+        })
+
+        it("Updates Ownership", async () => {
+            expect(await realEstate.ownerOf(1)).to.be.equal(escrow.address)
+        })
+
+        it("Returns Buyer", async () => {
+            expect(await escrow.buyer(1)).to.be.equal(buyer.address)
+        })
+
+        it("Returns purchase amount", async () => {
+            expect(await escrow.purchasePrice(1)).to.be.equal(tokens(10))
+        })
+
+        it("Returns escrow amount", async () => {
+            expect(await escrow.escrowAmount(1)).to.be.equal(tokens(5))
+        })
+
     })
 })
