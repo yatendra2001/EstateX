@@ -25,10 +25,17 @@ contract Escrow {
         _;
     }
 
+    modifier onlyInspector() {
+        require(msg.sender == inspector, "Only inspector can call this method");
+        _;
+    }
+
     mapping(uint256 => bool) public isListed;
     mapping(uint256 => uint256) public purchasePrice;
     mapping(uint256 => uint256) public escrowAmount;
     mapping(uint256 => address) public buyer;
+    mapping(uint256 => bool) public inspectionPassed;
+    mapping(uint256 =>  mapping(address => bool)) public approval;
 
     constructor(
         address _nftAddress,
@@ -59,20 +66,59 @@ contract Escrow {
     }
 
     // Put Under Contract (only buyer - seller escrow) - This is for sort of like a downpayment for a property
+    // Earnest is money paid to confirm a contract.
     function depositEarnest( uint256 _nftId) public payable onlyBuyer(_nftId){
         /*  msg.value is ether getting transfered during this transaction and
-            we are checking if that amount is greater than atleast escrowamount(downpayment)  */
+            we are checking if that amount is greater than escrowAmount(earnestAmount) in order to proceed */
         require(msg.value >= escrowAmount[_nftId]);
     }
 
+    // Update inspection status
+    function updateInspectionStatus(uint256 _nftId, bool _passed) public onlyInspector{
+        inspectionPassed[_nftId] = _passed;
+    }
+
+    // Approve sale
+    function approveSale(uint256 _nftId) public{
+        approval[_nftId][msg.sender] = true;
+    }
 
     // This will let smart contract receive ether: Lender can send funds here and increase the balance
     // Need below function in order to receive ether
-    receive() external payable{
-
-    }
+    receive() external payable{}
 
     function getBalance() public view returns(uint256) {
         return address(this).balance;
+    }
+
+    /* Finalise Sale
+    -> Require inspections status (add more items here, like appraisal)
+    -> Require sale to be authorized
+    -> Require funds to be correct amount
+    -> Transfer NFT to buyer
+    -> Transfer Funds to Seller */
+    function finaliseSale(uint256 _nftId) public{
+        require(inspectionPassed[_nftId]);
+        require(approval[_nftId][buyer[_nftId]]);
+        require(approval[_nftId][seller]);
+        require(approval[_nftId][lender]);
+        require(address(this).balance >= purchasePrice[_nftId]);
+
+        isListed[_nftId] = false;
+
+        (bool success, ) = payable(seller).call{value: address(this).balance}("");
+        require(success);
+
+        IERC721(nftAddress).transferFrom(address(this),buyer[_nftId],_nftId);
+    }
+
+    /* Cancel Sale (handle earnest deposit)
+    -> If inspection status is not approved, then refund, otherwise send to seller */
+    function cancelSale(uint256 _nftId) public{
+        if(inspectionPassed[_nftId]==false){
+            payable(buyer[_nftId]).transfer(address(this).balance);
+        } else {
+            payable(seller).transfer(address(this).balance);
+        }
     }
 }
