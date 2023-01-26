@@ -63,7 +63,6 @@ describe('Escrow', () => {
     })
 
     describe("Listing", () => {
-
         it("Updates as Listed", async () => {
             expect(await escrow.isListed(1)).to.be.equal(true)
         })
@@ -83,6 +82,14 @@ describe('Escrow', () => {
         it("Returns escrow amount", async () => {
             expect(await escrow.escrowAmount(1)).to.be.equal(tokens(5))
         })
+    })
 
+    describe("Deposits", () => {
+        it("Updates contract balance", async () => {
+            const transaction = await escrow.connect(buyer).depositEarnest(1, { value: tokens(5) })
+            await transaction.wait()
+            const result = await escrow.getBalance()
+            expect(result).to.be.equal(tokens(5))
+        })
     })
 })

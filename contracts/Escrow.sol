@@ -15,6 +15,11 @@ contract Escrow {
     address public inspector;
     address public lender;
 
+    modifier onlyBuyer(uint256 _nftId) {
+        require(msg.sender == buyer[_nftId], "Only buyer can call this method");
+        _;
+    }
+
     modifier onlySeller() {
         require(msg.sender == seller, "Only seller can call this method");
         _;
@@ -51,5 +56,23 @@ contract Escrow {
         purchasePrice[_nftId] = _purchasePrice;
         escrowAmount[_nftId] = _escrowAmount;
         buyer[_nftId] = _buyer;
+    }
+
+    // Put Under Contract (only buyer - seller escrow) - This is for sort of like a downpayment for a property
+    function depositEarnest( uint256 _nftId) public payable onlyBuyer(_nftId){
+        /*  msg.value is ether getting transfered during this transaction and
+            we are checking if that amount is greater than atleast escrowamount(downpayment)  */
+        require(msg.value >= escrowAmount[_nftId]);
+    }
+
+
+    // This will let smart contract receive ether: Lender can send funds here and increase the balance
+    // Need below function in order to receive ether
+    receive() external payable{
+
+    }
+
+    function getBalance() public view returns(uint256) {
+        return address(this).balance;
     }
 }
